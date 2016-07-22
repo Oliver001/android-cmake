@@ -29,7 +29,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 # ------------------------------------------------------------------------------
-#  Android CMake toolchain file, for use with the Android NDK r5-r10d
+#  Android CMake toolchain file, for use with the Android NDK r5-r11c
 #  Requires cmake 2.6.3 or newer (2.8.9 or newer is recommended).
 #  See home page: https://github.com/taka-no-me/android-cmake
 #
@@ -197,6 +197,8 @@ if( CMAKE_TOOLCHAIN_FILE )
  # touch toolchain variable to suppress "unused variable" warning
 endif()
 
+option(ANDROID_FORCE_COMPILERS "Force C/C++ compiler" ON)
+
 # inherit settings in recursive loads
 get_property( _CMAKE_IN_TRY_COMPILE GLOBAL PROPERTY IN_TRY_COMPILE )
 if( _CMAKE_IN_TRY_COMPILE )
@@ -218,7 +220,7 @@ set( CMAKE_SHARED_LIBRARY_RUNTIME_C_FLAG "" )
 set( CMAKE_SKIP_RPATH TRUE CACHE BOOL "If set, runtime paths are not added when using shared libraries." )
 
 # NDK search paths
-set( ANDROID_SUPPORTED_NDK_VERSIONS ${ANDROID_EXTRA_NDK_VERSIONS} -r10d -r10c -r10b -r10 -r9d -r9c -r9b -r9 -r8e -r8d -r8c -r8b -r8 -r7c -r7b -r7 -r6b -r6 -r5c -r5b -r5 "" )
+set( ANDROID_SUPPORTED_NDK_VERSIONS ${ANDROID_EXTRA_NDK_VERSIONS} -r11c -r11b -r11 -r10e -r10d -r10c -r10b -r10 -r9d -r9c -r9b -r9 -r8e -r8d -r8c -r8b -r8 -r7c -r7b -r7 -r6b -r6 -r5c -r5b -r5 "" )
 if( NOT DEFINED ANDROID_NDK_SEARCH_PATHS )
  if( CMAKE_HOST_WIN32 )
   file( TO_CMAKE_PATH "$ENV{PROGRAMFILES}" ANDROID_NDK_SEARCH_PATHS )
@@ -338,11 +340,11 @@ endmacro()
 
 
 # fight against cygwin
-set( ANDROID_FORBID_SYGWIN TRUE CACHE BOOL "Prevent cmake from working under cygwin and using cygwin tools")
-mark_as_advanced( ANDROID_FORBID_SYGWIN )
-if( ANDROID_FORBID_SYGWIN )
+set( ANDROID_FORBID_CYGWIN TRUE CACHE BOOL "Prevent cmake from working under cygwin and using cygwin tools")
+mark_as_advanced( ANDROID_FORBID_CYGWIN )
+if( ANDROID_FORBID_CYGWIN )
  if( CYGWIN )
-  message( FATAL_ERROR "Android NDK and android-cmake toolchain are not welcome Cygwin. It is unlikely that this cmake toolchain will work under cygwin. But if you want to try then you can set cmake variable ANDROID_FORBID_SYGWIN to FALSE and rerun cmake." )
+  message( FATAL_ERROR "Android NDK and android-cmake toolchain are not welcome Cygwin. It is unlikely that this cmake toolchain will work under cygwin. But if you want to try then you can set cmake variable ANDROID_FORBID_CYGWIN to FALSE and rerun cmake." )
  endif()
 
  if( CMAKE_HOST_WIN32 )
@@ -600,7 +602,7 @@ if( BUILD_WITH_ANDROID_NDK )
  endif()
  if( NOT __availableToolchains )
   file( GLOB __availableToolchainsLst RELATIVE "${ANDROID_NDK_TOOLCHAINS_PATH}" "${ANDROID_NDK_TOOLCHAINS_PATH}/*" )
-  if( __availableToolchains )
+  if( __availableToolchainsLst )
    list(SORT __availableToolchainsLst) # we need clang to go after gcc
   endif()
   __LIST_FILTER( __availableToolchainsLst "^[.]" )
@@ -835,7 +837,7 @@ set( ANDROID_STL_FORCE_FEATURES ON CACHE BOOL "automatically configure rtti and 
 mark_as_advanced( ANDROID_STL ANDROID_STL_FORCE_FEATURES )
 
 if( BUILD_WITH_ANDROID_NDK )
- if( NOT "${ANDROID_STL}" MATCHES "^(none|system|system_re|gabi\\+\\+_static|gabi\\+\\+_shared|stlport_static|stlport_shared|gnustl_static|gnustl_shared|c\\+\\+_static|c\\+\\+_shared)$")
+  if( NOT "${ANDROID_STL}" MATCHES "^(none|system|system_re|gabi\\+\\+_static|gabi\\+\\+_shared|stlport_static|stlport_shared|gnustl_static|gnustl_shared|c\\+\\+_static|c\\+\\+_shared)$")
   message( FATAL_ERROR "ANDROID_STL is set to invalid value \"${ANDROID_STL}\".
 The possible values are:
   none           -> Do not configure the runtime.
@@ -990,7 +992,7 @@ if( BUILD_WITH_ANDROID_NDK )
   set( ANDROID_STL_INCLUDE_DIRS "${ANDROID_NDK}/sources/cxx-stl/system/include" )
  elseif( ANDROID_STL MATCHES "gabi" )
   if( ANDROID_NDK_RELEASE_NUM LESS 7000 ) # before r7
-   message( FATAL_ERROR "gabi++ is not awailable in your NDK. You have to upgrade to NDK r7 or newer to use gabi++.")
+   message( FATAL_ERROR "gabi++ is not available in your NDK. You have to upgrade to NDK r7 or newer to use gabi++.")
   endif()
   set( ANDROID_RTTI             ON )
   set( ANDROID_EXCEPTIONS       OFF )
@@ -1029,7 +1031,7 @@ if( BUILD_WITH_ANDROID_NDK )
   else()
    set( __libstl                "${__libstl}/libs/${ANDROID_NDK_ABI_NAME}/libstdc++.a" )
   endif()
- elseif( ANDROID_STL MATCHES "c\\+\\+_shared" OR ANDROID_STL MATCHES "c\\+\\+_static" )
+  elseif( ANDROID_STL MATCHES "c\\+\\+_shared" OR ANDROID_STL MATCHES "c\\+\\+_static" )
   set( ANDROID_EXCEPTIONS       ON )
   set( ANDROID_RTTI             ON )
   set( ANDROID_CXX_ROOT     "${ANDROID_NDK}/sources/cxx-stl/" )
@@ -1120,9 +1122,15 @@ if( NOT CMAKE_C_COMPILER )
    set( CMAKE_CXX_COMPILER "${ANDROID_TOOLCHAIN_ROOT}/bin/${ANDROID_TOOLCHAIN_MACHINE_NAME}-g++${TOOL_OS_SUFFIX}"    CACHE PATH "C++ compiler" )
   endif()
  endif()
- set( CMAKE_ASM_COMPILER "${ANDROID_TOOLCHAIN_ROOT}/bin/${ANDROID_TOOLCHAIN_MACHINE_NAME}-gcc${TOOL_OS_SUFFIX}"     CACHE PATH "assembler" )
- set( CMAKE_STRIP        "${ANDROID_TOOLCHAIN_ROOT}/bin/${ANDROID_TOOLCHAIN_MACHINE_NAME}-strip${TOOL_OS_SUFFIX}"   CACHE PATH "strip" )
- set( CMAKE_AR           "${ANDROID_TOOLCHAIN_ROOT}/bin/${ANDROID_TOOLCHAIN_MACHINE_NAME}-ar${TOOL_OS_SUFFIX}"      CACHE PATH "archive" )
+ set( CMAKE_ASM_COMPILER   "${ANDROID_TOOLCHAIN_ROOT}/bin/${ANDROID_TOOLCHAIN_MACHINE_NAME}-gcc${TOOL_OS_SUFFIX}"   CACHE PATH "assembler" )
+ set( CMAKE_C_PREPROCESSOR "${ANDROID_TOOLCHAIN_ROOT}/bin/${ANDROID_TOOLCHAIN_MACHINE_NAME}-cpp${TOOL_OS_SUFFIX}"   CACHE PATH "preprocessor" )
+ set( CMAKE_STRIP          "${ANDROID_TOOLCHAIN_ROOT}/bin/${ANDROID_TOOLCHAIN_MACHINE_NAME}-strip${TOOL_OS_SUFFIX}" CACHE PATH "strip" )
+ if( EXISTS "${ANDROID_TOOLCHAIN_ROOT}/bin/${ANDROID_TOOLCHAIN_MACHINE_NAME}-gcc-ar${TOOL_OS_SUFFIX}" )
+  # Use gcc-ar if we have it for better LTO support.
+  set( CMAKE_AR           "${ANDROID_TOOLCHAIN_ROOT}/bin/${ANDROID_TOOLCHAIN_MACHINE_NAME}-gcc-ar${TOOL_OS_SUFFIX}"      CACHE PATH "archive" )
+ else()
+  set( CMAKE_AR           "${ANDROID_TOOLCHAIN_ROOT}/bin/${ANDROID_TOOLCHAIN_MACHINE_NAME}-ar${TOOL_OS_SUFFIX}"      CACHE PATH "archive" )
+ endif()
  set( CMAKE_LINKER       "${ANDROID_TOOLCHAIN_ROOT}/bin/${ANDROID_TOOLCHAIN_MACHINE_NAME}-ld${TOOL_OS_SUFFIX}"      CACHE PATH "linker" )
  set( CMAKE_NM           "${ANDROID_TOOLCHAIN_ROOT}/bin/${ANDROID_TOOLCHAIN_MACHINE_NAME}-nm${TOOL_OS_SUFFIX}"      CACHE PATH "nm" )
  set( CMAKE_OBJCOPY      "${ANDROID_TOOLCHAIN_ROOT}/bin/${ANDROID_TOOLCHAIN_MACHINE_NAME}-objcopy${TOOL_OS_SUFFIX}" CACHE PATH "objcopy" )
@@ -1142,9 +1150,13 @@ if( APPLE )
  mark_as_advanced( CMAKE_INSTALL_NAME_TOOL )
 endif()
 
-# Force set compilers because standard identification works badly for us
-include( CMakeForceCompiler )
-CMAKE_FORCE_C_COMPILER( "${CMAKE_C_COMPILER}" GNU )
+if(ANDROID_FORCE_COMPILERS)
+  # Force set compilers because standard identification works badly for us
+  include( CMakeForceCompiler )
+  CMAKE_FORCE_C_COMPILER( "${CMAKE_C_COMPILER}" GNU )
+  CMAKE_FORCE_CXX_COMPILER( "${CMAKE_CXX_COMPILER}" GNU )
+endif()
+
 if( ANDROID_COMPILER_IS_CLANG )
  set( CMAKE_C_COMPILER_ID Clang )
 endif()
@@ -1156,7 +1168,6 @@ else()
 endif()
 set( CMAKE_C_HAS_ISYSROOT 1 )
 set( CMAKE_C_COMPILER_ABI ELF )
-CMAKE_FORCE_CXX_COMPILER( "${CMAKE_CXX_COMPILER}" GNU )
 if( ANDROID_COMPILER_IS_CLANG )
  set( CMAKE_CXX_COMPILER_ID Clang)
 endif()
@@ -1593,11 +1604,24 @@ macro( find_host_program )
  set( CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY )
 endmacro()
 
+macro( ANDROID_GET_ABI_RAWNAME TOOLCHAIN_FLAG VAR )
+ if( "${TOOLCHAIN_FLAG}" STREQUAL "ARMEABI" )
+  set( ${VAR} "armeabi" )
+ elseif( "${TOOLCHAIN_FLAG}" STREQUAL "ARMEABI_V7A" )
+  set( ${VAR} "armeabi-v7a" )
+ elseif( "${TOOLCHAIN_FLAG}" STREQUAL "X86" )
+  set( ${VAR} "x86" )
+ elseif( "${TOOLCHAIN_FLAG}" STREQUAL "MIPS" )
+  set( ${VAR} "mips" )
+ else()
+  set( ${VAR} "unknown" )
+ endif()
+endmacro()
 
 # export toolchain settings for the try_compile() command
 if( NOT _CMAKE_IN_TRY_COMPILE )
  set( __toolchain_config "")
- foreach( __var NDK_CCACHE  LIBRARY_OUTPUT_PATH_ROOT  ANDROID_FORBID_SYGWIN
+ foreach( __var NDK_CCACHE  LIBRARY_OUTPUT_PATH_ROOT  ANDROID_FORBID_CYGWIN
                 ANDROID_NDK_HOST_X64
                 ANDROID_NDK
                 ANDROID_NDK_LAYOUT
@@ -1648,7 +1672,7 @@ endif()
 #   ANDROID_ABI : "armeabi-v7a" (default), "armeabi", "armeabi-v7a with NEON", "armeabi-v7a with VFPV3", "armeabi-v6 with VFP", "x86", "mips", "arm64-v8a", "x86_64", "mips64"
 #   ANDROID_NATIVE_API_LEVEL : 3,4,5,8,9,14,15,16,17,18,19,21 (depends on NDK version)
 #   ANDROID_STL : gnustl_static/gnustl_shared/stlport_static/stlport_shared/gabi++_static/gabi++_shared/system_re/system/none
-#   ANDROID_FORBID_SYGWIN : ON/OFF
+#   ANDROID_FORBID_CYGWIN : ON/OFF
 #   ANDROID_NO_UNDEFINED : ON/OFF
 #   ANDROID_SO_UNDEFINED : OFF/ON  (default depends on NDK version)
 #   ANDROID_FUNCTION_LEVEL_LINKING : ON/OFF
@@ -1683,7 +1707,7 @@ endif()
 #   BUILD_WITH_STANDALONE_TOOLCHAIN : TRUE if standalone toolchain is used
 #   ANDROID_NDK_HOST_SYSTEM_NAME : "windows", "linux-x86" or "darwin-x86" depending on host platform
 #   ANDROID_NDK_ABI_NAME : "armeabi", "armeabi-v7a", "x86", "mips", "arm64-v8a", "x86_64", "mips64" depending on ANDROID_ABI
-#   ANDROID_NDK_RELEASE : from r5 to r10d; set only for NDK
+#   ANDROID_NDK_RELEASE : from r5 to r11c; set only for NDK
 #   ANDROID_NDK_RELEASE_NUM : numeric ANDROID_NDK_RELEASE version (1000*major+minor)
 #   ANDROID_ARCH_NAME : "arm", "x86", "mips", "arm64", "x86_64", "mips64" depending on ANDROID_ABI
 #   ANDROID_SYSROOT : path to the compiler sysroot
